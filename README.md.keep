@@ -30,7 +30,11 @@ To understand and use the client, review the [Go API documentation](https://pkg.
 
 Hazelcast SQL API is a Calcite SQL based interface to allow you to interact with Hazelcast much like any other datastore.
 
-In the `cmnd/2-sql-api.go` example, we will create a map and insert into it, entries where the keys are ids and the values are defined as an object representing a city.
+In the `cmd/2-sql-api.go` example, we will create a map and insert into it, entries where the keys are ids and the values are defined as an object representing a city.
+
+```
+go run ./cmd/2-sql-api.go
+```
 
 The output of this code is given below:
 
