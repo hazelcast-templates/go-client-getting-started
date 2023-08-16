@@ -1,0 +1,77 @@
+package gettingstarted
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+
+	"github.com/hazelcast/hazelcast-go-client"
+)
+
+func ClientConfig() (hazelcast.Config, error) {
+	var cfg hazelcast.Config
+	var err error
+	home := os.Getenv("CLC_HOME")
+	if home == "" {
+		var hzHome string
+		if runtime.GOOS == "windows" {
+			hzHome = `AppData\Roaming\Hazelcast`
+		} else {
+			hzHome = ".hazelcast"
+		}
+		home, err = os.UserHomeDir()
+		if err != nil {
+			return cfg, err
+		}
+		home = filepath.Join(home, hzHome)
+	}
+	var configDir string
+	configName := `{{ or .config "default" }}`
+	if !strings.HasSuffix(configName, ".yaml") {
+		configName = fmt.Sprintf("%s/configs/%s", home, configName)
+		configDir = configName
+	} else {
+		configDir = configName[:len(filepath.Ext(configName))]
+	}
+	_ = configDir
+{{ if .cluster_name }}
+	cfg.Cluster.Name = "{{ .cluster_name }}"
+{{ end }}
+{{ if .cluster_discovery_token }}
+	cfg.Cluster.Cloud.Enabled = true
+	cfg.Cluster.Cloud.Token = "{{ .cluster_discovery_token }}"
+{{ else }}
+    {{ if .cluster_address }}
+	cfg.Cluster.Network.SetAddresses("{{ .cluster_address }}")
+    {{ end }}
+{{ end }}
+{{ if and .ssl_key_path .ssl_ca_path }}
+	keyPath := configDir + "/{{ .ssl_key_path }}"
+	certPath := configDir + "/{{ .ssl_cert_path }}"
+	{{ if .ssl_key_password }}
+	if err := cfg.Cluster.Network.SSL.AddClientCertAndEncryptedKeyPath(certPath, keyPath, "{{ .ssl_key_password }}"); err != nil {
+		return cfg, err
+	}
+	{{ else }}
+	if err := cfg.Cluster.Network.SSL.AddClientCertAndKeyPath(certPath, keyPath); err != nil {
+		return cfg, err
+	}
+	{{ end }}
+{{ end }}
+{{ if .ssl_ca_path }}
+	caPath := configDir + "/{{ .ssl_ca_path }}"
+	if err := cfg.Cluster.Network.SSL.SetCAPath(caPath); err != nil {
+		return cfg, err
+	}
+{{ end }}
+	viridianAPIBase := os.Getenv("HZ_CLOUD_COORDINATOR_BASE_URL")
+	if viridianAPIBase == "" {
+		viridianAPIBase = `{{ or .cluster_api_base ""}}`
+	}
+	if viridianAPIBase != "" {
+		cfg.Cluster.Cloud.ExperimentalAPIBaseURL = viridianAPIBase
+	}
+	return cfg, nil
+}
